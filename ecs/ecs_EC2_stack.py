@@ -1,3 +1,4 @@
+from operator import mod
 from aws_cdk import (
     aws_ec2 as ec2,
     aws_ecs as ecs,
@@ -9,7 +10,7 @@ from aws_cdk import (
 import aws_cdk as cdk
 from constructs import Construct
 
-# stack = Stack(app, "ec2-service-with-task-networking")
+# add dependencies
 
 
 class EcsEC2Stack(Stack):
@@ -38,6 +39,12 @@ class EcsEC2Stack(Stack):
                                         ),
                                         iam.ManagedPolicy.from_aws_managed_policy_name(
                                             'service-role/AmazonEC2ContainerServiceRole'
+                                        ),
+                                        iam.ManagedPolicy.from_aws_managed_policy_name(
+                                            'AWSOpsWorksCloudWatchLogs'
+                                        ),
+                                        iam.ManagedPolicy.from_aws_managed_policy_name(
+                                            'AmazonSSMManagedInstanceCore'
                                         )
                                     ]
                                 )
@@ -67,7 +74,7 @@ class EcsEC2Stack(Stack):
         #                                    vpc_subnets=ec2.SubnetSelection(#availability_zones=["ap-south-1a"],
         #                                                                    subnet_type=ec2.SubnetType.PUBLIC
         #                                                                    ),
-        #                                    instance_type=ec2.InstanceType(instance_type_identifier="t3.micro"),
+        #                                    instance_type=ec2.InstanceType(instance_type_identifier="t3a.medium"),
         #                                    machine_image=ecs.EcsOptimizedImage.amazon_linux2(),
         #                                    security_group=security_group,
         #                                    user_data=ec2.UserData.custom(user_data),
@@ -84,12 +91,14 @@ class EcsEC2Stack(Stack):
                                                 execution_role=ecs_EC2_role,
                                                 task_role=ecs_EC2_role
                                                 )
+        
         # Adding Caintainers to task defination 
         web_container = task_definition.add_container("Ecs-EC2-nginx",
-                                                      image=ecs.ContainerImage.from_registry("public.ecr.aws/nginx/nginx:1.22-alpine"),
-                                                      
-                                                      memory_limit_mib=256,
-                                                      essential=True
+                                                      image=ecs.ContainerImage.from_registry("public.ecr.aws/nginx/nginx:1.22-alpine"),                                                      
+                                                      memory_reservation_mib=256,
+                                                      essential=True,
+                                                      logging=ecs.LogDrivers.aws_logs(stream_prefix="ECS",
+                                                                                      )
                                                       )
         # Port mapping
         port_mapping = ecs.PortMapping(container_port=80,
@@ -110,7 +119,7 @@ class EcsEC2Stack(Stack):
         
         # Setup Autoscaling Policy
         scaling=Ec2_service.auto_scale_task_count(max_capacity=4,
-                                                min_capacity=1
+                                                min_capacity=2
                                                 )
         scaling.scale_on_cpu_utilization("CpuScaling",
                                         target_utilization_percent=50,
@@ -156,3 +165,8 @@ class EcsEC2Stack(Stack):
                             health_check=health_check,
                             target_group_name="EcsEC2-TG"
                             )
+
+        # Cfn output
+        cdk.CfnOutput(self,"LBDNS",
+                      value=lb.load_balancer_dns_name,
+                      export_name="LB-DNS")

@@ -6,7 +6,7 @@ from aws_cdk import (
 )
 
 from constructs import Construct
-
+import aws_cdk as cdk
 # stack = Stack(app, "ec2-service-with-task-networking")
 
 
@@ -65,6 +65,7 @@ class EcsStack(Stack):
         task_definition.add_container("TheContainer",
             image=ecs.ContainerImage.from_registry("public.ecr.aws/nginx/nginx:1.22-alpine"),
             memory_limit_mib=256,
+            #logging=ecs.LogDrivers.aws_logs()
         )
         
         # cluster.enable_fargate_capacity_providers
@@ -77,8 +78,8 @@ class EcsStack(Stack):
                                      security_groups=[security_group]
                                      )     
         
-        
-        # out=aws_cdk.CfnOutput(self,
-        #                "customVpcOutput",
-        #                value=,
-        #                export_name="VpcId")
+
+        # cdk.CfnOutput(self,
+        #             "LBDNS",
+        #             value=run_task.,
+        #             export_name="LB_DNS")
